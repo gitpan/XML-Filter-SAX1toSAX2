@@ -5,7 +5,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'XML::Filter::SAX1toSAX2',
     'VERSION_FROM' => 'SAX1toSAX2.pm', # finds $VERSION
-    'PREREQ_PM' => { 'XML::Filter::Base' => 0, },
+    'PREREQ_PM' => { 'XML::SAX::Base' => 0, XML::NamespaceSupport => 0 },
     'AUTHOR' => 'Matt Sergeant',
     'ABSTRACT_FROM' => 'SAX1toSAX2.pm',
 );

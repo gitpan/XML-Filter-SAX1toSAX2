@@ -5,16 +5,16 @@ package XML::Filter::SAX2toSAX1;
 use strict;
 use vars qw($VERSION @ISA);
 
-use XML::Filter::Base;
+use XML::SAX::Base;
 
-@ISA = qw(XML::Filter::Base);
+@ISA = qw(XML::SAX::Base);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 sub start_document {
     my ($self, $document) = @_;
     
-    $self->{Handler}->start_document($document);
+    $self->SUPER::start_document($document);
 }
     
 sub start_element {
@@ -22,24 +22,25 @@ sub start_element {
     
     $self->make_sax1_attribs($element);
     
-    $self->{Handler}->start_element($element);
+    delete($element->{LocalName});
+    delete($element->{Prefix});
+    delete($element->{NamespaceURI});
+    
+    $self->SUPER::start_element($element);
 }
 
 sub end_element {
     my ($self, $element) = @_;
     
-    $self->make_sax1_attribs($element);
-    
-    $self->{Handler}->end_element($element);
+    delete($element->{Attributes});
+    delete($element->{LocalName});
+    delete($element->{Prefix});
+    delete($element->{NamespaceURI});
+    $self->SUPER::end_element($element);
 }
 
 sub make_sax1_attribs {
     my ($self, $element) = @_;
-    
-    if (ref($element->{Attributes}) eq 'HASH') {
-        # already SAX2 attribs!
-        return;
-    }
     
     my %attribs;
     
@@ -48,8 +49,6 @@ sub make_sax1_attribs {
     }
     
     $element->{Attributes} = \%attribs;
-    
-    return;
 }
 
 1;
@@ -67,9 +66,9 @@ XML::Filter::SAX2toSAX1 - Convert SAX2 events to SAX1
   # filter from SAX2 to SAX1
   my $filter = XML::Filter::SAX2toSAX1->new(Handler => $handler);
   # SAX2 parser
-  my $parser = Orchard::SAXDriver::Expat->new(Handler => $filter);
+  my $parser = XML::SAX::ParserFactory->parser(Handler => $filter);
   # parse file
-  $parser->parse( "file.xml" );
+  $parser->parse_uri( "file.xml" );
 
 =head1 DESCRIPTION
 
@@ -83,6 +82,6 @@ Matt Sergeant, matt@sergeant.org
 
 =head1 SEE ALSO
 
-XML::Parser::PerlSAX, XML::Filter::Base, XML::Filter::SAX1toSAX2
+XML::Parser::PerlSAX, XML::SAX::Base, XML::Filter::SAX1toSAX2
 
 =cut
