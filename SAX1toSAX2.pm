@@ -1,4 +1,4 @@
-# $Id: SAX1toSAX2.pm,v 1.2 2001/05/23 11:52:34 matt Exp $
+# $Id: SAX1toSAX2.pm,v 1.4 2002/07/08 11:56:04 matt Exp $
 
 package XML::Filter::SAX1toSAX2;
 
@@ -10,22 +10,33 @@ use XML::NamespaceSupport;
 
 @ISA = qw(XML::SAX::Base);
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 sub start_document {
     my ($self, $document) = @_;
     
-    $self->{NSSupport} = XML::NamespaceSupport->new();
+    $self->{NSSupport} = XML::NamespaceSupport->new({ xmlns => 1 });
     $self->SUPER::start_document($document);
 }
     
 sub start_element {
     my ($self, $element) = @_;
     
-    $self->{NSSupoort}->push_context;
+    $self->{NSSupport}->push_context;
     
     $self->make_sax2_attribs($element);
-    my ($uri, $lname, $prefix) = $self->{NSSupport}->process_element_name($element->{Name});
+    
+    foreach my $prefix ($self->{NSSupport}->get_declared_prefixes) {
+        # warn("start_prefix_mapping: $prefix\n");
+        $self->SUPER::start_prefix_mapping(
+            {
+                Prefix => $prefix,
+                NamespaceURI => $self->{NSSupport}->get_uri($prefix),
+            }
+        );
+    }
+    
+    my ($uri, $prefix, $lname) = $self->{NSSupport}->process_element_name($element->{Name});
     $element->{LocalName} = $lname;
     $element->{Prefix} = $prefix;
     $element->{NamespaceURI} = $uri;
@@ -35,14 +46,25 @@ sub start_element {
 sub end_element {
     my ($self, $element) = @_;
     
-    $self->{NSSupport}->pop_context;
+    foreach my $prefix ($self->{NSSupport}->get_declared_prefixes) {
+        # warn("end_prefix_mapping: $prefix\n");
+        $self->SUPER::end_prefix_mapping(
+            {
+                Prefix => $prefix,
+                NamespaceURI => $self->{NSSupport}->get_uri($prefix),
+            }
+        );
+    }
     
     delete($self->{Attributes}); # just in case
     
-    my ($uri, $lname, $prefix) = $self->{NSSupport}->process_element_name($element->{Name});
+    my ($uri, $prefix, $lname) = $self->{NSSupport}->process_element_name($element->{Name});
+    # warn("$element->{Name} => $uri, $lname, $prefix\n");
     $element->{LocalName} = $lname;
     $element->{Prefix} = $prefix;
     $element->{NamespaceURI} = $uri;
+    
+    $self->{NSSupport}->pop_context;
     
     $self->SUPER::end_element($element);
 }
@@ -55,7 +77,7 @@ sub make_sax2_attribs {
     
     my %attribs;
     foreach my $key (keys %{$element->{Attributes}}) {
-        my ($uri, $lname, $prefix) = $self->{NSSupport}->process_attribute_name($key);
+        my ($uri, $prefix, $lname) = $self->{NSSupport}->process_attribute_name($key);
         $attribs{"{$uri}$lname"} = {
             Name => $key,
             Value => $element->{Attributes}{$key},
@@ -74,6 +96,7 @@ sub _scan_namespaces {
     while (my ($attr_name, $value) = each %attributes) {
 	if ($attr_name =~ /^xmlns(:(.*))?$/) {
             my $prefix = $2 || '';
+            # warn("declare_prefix: $prefix = $value\n");
             $self->{NSSupport}->declare_prefix($prefix, $value)
 	}
     }

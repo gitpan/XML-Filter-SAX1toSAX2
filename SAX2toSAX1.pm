@@ -1,4 +1,4 @@
-# $Id: SAX2toSAX1.pm,v 1.1 2001/05/23 11:52:34 matt Exp $
+# $Id: SAX2toSAX1.pm,v 1.3 2002/07/08 11:56:04 matt Exp $
 
 package XML::Filter::SAX2toSAX1;
 
@@ -9,22 +9,21 @@ use XML::SAX::Base;
 
 @ISA = qw(XML::SAX::Base);
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
-sub start_document {
-    my ($self, $document) = @_;
-    
-    $self->SUPER::start_document($document);
-}
-    
 sub start_element {
     my ($self, $element) = @_;
     
+    # warn("start_element: $self->{Handler}\n");
     $self->make_sax1_attribs($element);
     
-    delete($element->{LocalName});
-    delete($element->{Prefix});
+    my $name = delete($element->{LocalName});
+    my $prefix = delete($element->{Prefix});
     delete($element->{NamespaceURI});
+    
+    $name = "$prefix:$name" if length($prefix);
+    
+    $element->{Name} = $name;
     
     $self->SUPER::start_element($element);
 }
@@ -32,10 +31,12 @@ sub start_element {
 sub end_element {
     my ($self, $element) = @_;
     
+    # warn("end_element\n");
     delete($element->{Attributes});
     delete($element->{LocalName});
     delete($element->{Prefix});
     delete($element->{NamespaceURI});
+
     $self->SUPER::end_element($element);
 }
 
@@ -44,8 +45,14 @@ sub make_sax1_attribs {
     
     my %attribs;
     
-    foreach my $attrib (@{$element->{Attributes}}) {
-        $attribs{$attrib->{Name}} = $attrib->{Value};
+    foreach my $attrib (values %{$element->{Attributes}}) {
+        if (length($attrib->{Prefix})) {
+            $attribs{"$attrib->{Prefix}:$attrib->{LocalName}"} =
+              $attrib->{Value};
+        }
+        else {
+            $attribs{$attrib->{LocalName}} = $attrib->{Value};
+        }
     }
     
     $element->{Attributes} = \%attribs;
